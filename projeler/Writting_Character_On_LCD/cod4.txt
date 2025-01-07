@@ -1,1 +1,78 @@
 Bu proje için kodlar buraya gelecek
+
+#include <stdint.h>
+#include <stdbool.h>
+#include "inc/hw_memmap.h"
+#include "inc/hw_types.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
+
+// LCD komutlarını ve işlemlerini tanımla
+#define LCD_PORT_DATA GPIO_PORTB_BASE
+#define LCD_PORT_CTRL GPIO_PORTB_BASE
+#define RS GPIO_PIN_0
+#define E GPIO_PIN_1
+#define D4 GPIO_PIN_4
+#define D5 GPIO_PIN_5
+#define D6 GPIO_PIN_6
+#define D7 GPIO_PIN_7
+
+void LCD_command(uint8_t command);
+void LCD_init(void);
+void LCD_write(char data);
+
+void LCD_pulseEnable(void) {
+    GPIOPinWrite(LCD_PORT_CTRL, E, E);
+    SysCtlDelay(400);
+    GPIOPinWrite(LCD_PORT_CTRL, E, 0);
+    SysCtlDelay(400);
+}
+
+void LCD_command(uint8_t command) {
+    GPIOPinWrite(LCD_PORT_CTRL, RS, 0); // Komut için RS = 0
+
+    GPIOPinWrite(LCD_PORT_DATA, D4 | D5 | D6 | D7, (command & 0xF0)); // Yüksek nibble
+    LCD_pulseEnable();
+
+    GPIOPinWrite(LCD_PORT_DATA, D4 | D5 | D6 | D7, (command << 4) & 0xF0); // Düşük nibble
+    LCD_pulseEnable();
+
+    SysCtlDelay(10000);
+}
+
+void LCD_write(char data) {
+    GPIOPinWrite(LCD_PORT_CTRL, RS, RS); // Veri için RS = 1
+
+    GPIOPinWrite(LCD_PORT_DATA, D4 | D5 | D6 | D7, (data & 0xF0)); // Yüksek nibble
+    LCD_pulseEnable();
+
+    GPIOPinWrite(LCD_PORT_DATA, D4 | D5 | D6 | D7, (data << 4) & 0xF0); // Düşük nibble
+    LCD_pulseEnable();
+
+    SysCtlDelay(10000);
+}
+
+void LCD_init(void) {
+    SysCtlDelay(50000);
+    LCD_command(0x28); // 4-bit mod ve 2 satır
+    LCD_command(0x0C); // Ekranı aç, imleç kapalı
+    LCD_command(0x06); // İmleci sağa kaydır
+    LCD_command(0x01); // Ekranı temizle
+    SysCtlDelay(50000);
+}
+
+int main(void) {
+    SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_OSC_MAIN | SYSCTL_XTAL_16MHZ);
+    
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+    
+    GPIOPinTypeGPIOOutput(LCD_PORT_CTRL, RS | E);
+    GPIOPinTypeGPIOOutput(LCD_PORT_DATA, D4 | D5 | D6 | D7);
+    
+    LCD_init(); // LCD'yi başlat
+    LCD_command(0x80); // İlk satıra git
+    LCD_write('M'); // 'M' harfini yazdır
+
+    while (1) {
+    }
+}
