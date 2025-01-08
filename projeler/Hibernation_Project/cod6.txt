@@ -1,0 +1,44 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include "inc/hw_memmap.h"
+#include "inc/hw_types.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
+#include "driverlib/hibernate.h"
+
+int main(void) {
+    // Saat yapılandırması
+    SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
+
+    // GPIO yapılandırması (Port F etkinleştiriliyor)
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    while (!SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOF)) {}
+
+    // PF1 (Kırmızı LED) çıkış olarak ayarlanıyor
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1);
+
+    // Hibernate modülü etkinleştirme
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_HIBERNATE);
+    HibernateEnableExpClk(SysCtlClockGet());  // Hibernate saatini etkinleştir
+    HibernateGPIORetentionDisable();         // GPIO durumunu koruma devre dışı
+    HibernateRTCSet(0);                      // RTC başlangıç değeri
+    HibernateRTCEnable();                    // RTC'yi etkinleştir
+    HibernateWakeSet(HIBERNATE_WAKE_PIN);    // Wake-up pini etkinleştir
+
+    // LED yanıp söndürme döngüsü
+    volatile uint32_t ui32Loop;
+    while (1) {
+        // LED'i yak
+        GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, GPIO_PIN_1);
+        for (ui32Loop = 0; ui32Loop < 200000; ui32Loop++) {}
+
+        // LED'i söndür
+        GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_1, 0x0);
+        for (ui32Loop = 0; ui32Loop < 200000; ui32Loop++) {}
+
+        // Hibernate moduna geç
+        HibernateRequest(); // Mikrodenetleyiciyi uyku moduna alır
+
+        // Uyandıktan sonra LED tekrar yanıp sönmeye devam eder
+    }
+}
