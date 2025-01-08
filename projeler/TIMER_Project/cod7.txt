@@ -1,0 +1,100 @@
+Bu Proje Için kodlar buraya gelecek;
+
+#include <stdint.h>
+#include <stdbool.h>
+#include "inc/hw_types.h"
+#include "inc/hw_memmap.h"
+#include "inc/hw_ints.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
+#include "inc/hw_gpio.h"
+#include "driverlib/timer.h"
+#include "driverlib/interrupt.h"
+
+// Taşma sayacı değişkenleri
+volatile uint32_t timerACounter = 0;
+volatile uint32_t timerBCounter = 0;
+
+// Taşma limitleri
+#define TIMER_A_OVERFLOW_LIMIT 400
+#define TIMER_B_OVERFLOW_LIMIT 800
+
+void SetInitSettings();
+void timerAInterruptHandler();
+void timerBInterruptHandler();
+
+int main(void)
+{
+    SetInitSettings(); // İlk ayarlarımız
+
+    while(1)
+    {
+        // Ana döngüde sürekli bekleyeceğiz.
+    }
+}
+
+void SetInitSettings()
+{
+    // Sistem saati 40 MHz olarak ayarlanıyor.
+    SysCtlClockSet(SYSCTL_SYSDIV_5 | SYSCTL_USE_PLL | SYSCTL_XTAL_16MHZ | SYSCTL_OSC_MAIN);
+
+    // GPIOF portu etkinleştiriliyor.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_3); // Pin 1, 2 ve 3 çıkış olarak ayarlandı.
+
+    // Timer0 etkinleştiriliyor.
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER0);
+    TimerConfigure(TIMER0_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC | TIMER_CFG_B_PERIODIC); // Timer0 A ve B ayrı olarak periyodik modda ayarlanıyor.
+
+    // TimerA yük değeri ayarlanıyor (???). 0.5sn de bir kesme üretsin. Kırmızı ledi terslesin
+    TimerLoadSet(TIMER0_BASE, TIMER_A, 50000); // 16 bit limit içinde ??? olarak ayarlandı
+
+    // TimerB yük değeri ayarlanıyor (????). 1sn de bir kesme üretsin mavi ledi terslesin
+    TimerLoadSet(TIMER0_BASE, TIMER_B, 50000); // 16 bit limit içinde ??? olarak ayarlandı
+
+    // Kesme ayarları - global ve yerel interruptlar etkinleştiriliyor.
+    IntMasterEnable(); // Global kesme izni
+    IntEnable(INT_TIMER0A); // Timer0A için kesme izni
+    IntEnable(INT_TIMER0B); // Timer0B için kesme izni
+
+    // TimerA ve TimerB kesme ayarları.
+    TimerIntEnable(TIMER0_BASE, TIMER_TIMA_TIMEOUT); // TimerA kesmesi etkinleştiriliyor.
+    TimerIntEnable(TIMER0_BASE, TIMER_TIMB_TIMEOUT); // TimerB kesmesi etkinleştiriliyor.
+
+    // TimerA ve TimerB kesme fonksiyonları kaydediliyor.
+    TimerIntRegister(TIMER0_BASE, TIMER_A, timerAInterruptHandler);
+    TimerIntRegister(TIMER0_BASE, TIMER_B, timerBInterruptHandler);
+
+    // TimerA ve TimerB başlatılıyor.
+    TimerEnable(TIMER0_BASE, TIMER_A);
+    TimerEnable(TIMER0_BASE, TIMER_B);
+}
+
+void timerAInterruptHandler()
+{
+    // TimerA kesme bayrağı temizleniyor.
+    TimerIntClear(TIMER0_BASE, TIMER_TIMA_TIMEOUT);
+    timerACounter++;
+    if(timerACounter==TIMER_A_OVERFLOW_LIMIT) {
+        GPIOPinWrite(GPIO_PORTF_BASE,2,~GPIOPinRead(GPIO_PORTF_BASE,2));
+        timerACounter=0;
+    }
+
+
+  //0.5 snde
+}
+
+void timerBInterruptHandler()
+{
+    // TimerB kesme bayrağı temizleniyor.
+    TimerIntClear(TIMER0_BASE, TIMER_TIMB_TIMEOUT);
+    timerBCounter++;
+    if(timerBCounter==TIMER_B_OVERFLOW_LIMIT){
+        GPIOPinWrite(GPIO_PORTF_BASE,4,~GPIOPinRead(GPIO_PORTF_BASE,4));
+           timerBCounter=0;
+    }
+
+
+    //1 snde
+}
+
