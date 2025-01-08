@@ -1,0 +1,92 @@
+#include <stdint.h>
+#include <stdbool.h>
+#include "inc/hw_types.h"
+#include "inc/hw_memmap.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/gpio.h"
+#include "inc/hw_gpio.h"
+#include "driverlib/sysctl.c"
+#include "driverlib/interrupt.h"
+#include "inc/tm4c123gh6pm.h"
+#include "inc/hw_ints.h"
+#include "driverlib/watchdog.h"
+
+bool wcd=false; // Watchdog kesme durumu kontrol değişkeni
+int a=4; // GPIO çıkış değeri
+
+// Watchdog kesme fonksiyonu
+void wdtkesme()
+{
+    if(wcd)
+    {
+        wcd=false; // Kesme durumunu sıfırla
+        WatchdogIntClear(WATCHDOG0_BASE); // Watchdog kesmesini temizle
+        WatchdogReloadSet(WATCHDOG0_BASE, SysCtlClockGet()-1); // Watchdog yeniden yükleniyor
+        GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3,a); // GPIO çıkışlarını güncelle
+    }
+}
+
+void SetInitSettings(); // Başlatma ayarları fonksiyonu bildirimi
+
+int main(void)
+{
+    SetInitSettings(); // Donanım ayarlarını başlat
+
+    while(1)
+    {
+         wcd=true; // Watchdog kesme durumunu tetikle
+
+//        while(!GPIOPinRead(GPIO_PORTF_BASE,GPIO_PIN_4))
+//        {
+//            wcd=true; // Buton durumu kontrol edilebilir
+//        }
+    }
+}
+
+void SetInitSettings()
+{
+    // Sistem genel kesmeleri aktif hale getir (isteğe bağlı)
+    // IntMasterEnable();
+
+    // Sistem saatini 16 MHz kristal ve PLL kullanarak ayarla
+    SysCtlClockSet(SYSCTL_SYSDIV_5|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN);
+
+    // GPIOF portunu etkinleştir
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+
+    // PORTF Pin 1, 2 ve 3 çıkış olarak ayarla
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE,GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3);
+
+    // PORTF Pin 0'un kilidini aç (kilitlenmiş pinler için gerekli)
+    HWREG(GPIO_PORTF_BASE + GPIO_O_LOCK) = GPIO_LOCK_KEY;
+    HWREG(GPIO_PORTF_BASE + GPIO_O_CR) |= 0x01;
+
+    // PORTF Pin 0 ve 4'ü giriş olarak ayarla
+    GPIOPinTypeGPIOInput(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4);
+    GPIOPadConfigSet(GPIO_PORTF_BASE,GPIO_PIN_0|GPIO_PIN_4, GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD_WPU); // Pull-up direnç aktif
+
+    // PORTF Pin 1, 2 ve 3 çıkışlarını sıfırla (LED'leri kapat)
+    GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3,0);
+
+    // Watchdog modülünü etkinleştir
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_WDOG0);
+    while(!SysCtlPeripheralReady(SYSCTL_PERIPH_WDOG0))
+    {
+        // Watchdog modülünün hazır olmasını bekle
+    }
+
+    // Watchdog yeniden yükleme süresini ayarla
+    WatchdogReloadSet(WATCHDOG0_BASE, SysCtlClockGet());
+
+    // Watchdog kesme fonksiyonunu kaydet
+    WatchdogIntRegister(WATCHDOG0_BASE, wdtkesme);
+
+    // PORTF Pin 1, 2 ve 3 çıkışlarını test amacıyla 8 olarak ayarla
+    GPIOPinWrite(GPIO_PORTF_BASE,GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3,8);
+
+    // Watchdog kesmelerini etkinleştir
+    WatchdogIntEnable(WATCHDOG0_BASE);
+
+    // Watchdog'u başlat
+    WatchdogEnable(WATCHDOG0_BASE);
+}
