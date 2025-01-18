@@ -40,5 +40,6 @@ Provides an example of controlling an LCD display by writing characters using GP
 ### 12. Serial_Port_Project
 This project demonstrates UART (Universal Asynchronous Receiver-Transmitter) for serial communication, enabling data exchange between a microcontroller and external devices.
 
-![Serial Port Diagram](Serial_Port_Project/serial_port_diagram.png)
+![Serial Port Diagram(PNG)](projeler/Serial_Port_Project/serial_port_diagram.png)
+![Serial Port Diagram(JPG)](projeler/Serial_Port_Project/Serial_port_LCD.jpg)
 
