@@ -36,3 +36,9 @@ Integrates a Watchdog timer to ensure system stability and facilitate recovery f
 
 ### 11. Writting_Character_On_LCD
 Provides an example of controlling an LCD display by writing characters using GPIO configurations and embedded logic.
+
+### 12. Serial_Port_Project
+This project demonstrates UART (Universal Asynchronous Receiver-Transmitter) for serial communication, enabling data exchange between a microcontroller and external devices.
+
+![Serial Port Diagram](Serial_Port_Project/serial_port_diagram.png)
+
